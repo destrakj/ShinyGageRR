@@ -40,7 +40,7 @@ shinyUI(tagList(
         numericInput("lsl", "Lower Specification Limit: ", value = 0),
         br(),
         br(),
-        p("Input Measurement "),
+        p("CSV Input Format"),
         tags$a(href = "https://shorturl.at/fqCJ0", "Download!"),
         br(),
         br(),
