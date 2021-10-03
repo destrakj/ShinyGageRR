@@ -85,12 +85,12 @@ shinyServer(function(input, output) {
     colnames(gagEvalIn) <-
       c("StdDev", "StudyVar", "%StudyVar", "%Tolerance")
     
-    gagEvalIn[, 1] <- round(sqrt(varCompIn[, 1]), digits = 3)
+    gagEvalIn[, 1] <- round(sqrt(varCompIn[, 1]), digits = 8)
     gagEvalIn[, 2] <- gagEvalIn[, 1] * input$sigma
     gagEvalIn[, 3] <-
-      round(((gagEvalIn[, 2] / gagEvalIn[7, 2]) * 100), digits = 2)
+      round(((gagEvalIn[, 2] / gagEvalIn[7, 2]) * 100), digits = 8)
     gagEvalIn[, 4] <-
-      round((gagEvalIn[, 2] / (input$usl - input$lsl) * 100), 2)
+      round((gagEvalIn[, 2] / (input$usl - input$lsl) * 100), 8)
     
     print(gagEvalIn)
     assign("gagEvalIn", data.frame(matrix(
@@ -178,12 +178,12 @@ shinyServer(function(input, output) {
     colnames(gagEval) <-
       c("StdDev", "StudyVar", "%StudyVar", "%Tolerance")
     
-    gagEval[, 1] <- round(sqrt(varComp[, 1]), digits = 3)
+    gagEval[, 1] <- round(sqrt(varComp[, 1]), digits = 8)
     gagEval[, 2] <- gagEval[, 1] * input$sigma
     gagEval[, 3] <-
-      round(((gagEval[, 2] / gagEval[6, 2]) * 100), digits = 2)
+      round(((gagEval[, 2] / gagEval[6, 2]) * 100), digits = 8)
     gagEval[, 4] <-
-      round((gagEval[, 2] / (input$usl - input$lsl) * 100), 2)
+      round((gagEval[, 2] / (input$usl - input$lsl) * 100), 8)
     
     print(gagEval)
     assign("gagEval", data.frame(matrix(
