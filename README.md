@@ -3,5 +3,5 @@ Web Application to Perform Measurement System Analysis (GR&amp;R) using Two Way 
 
 # Visit Web Application 
 ```bash
-https://shiny-msa-gagernr.herokuapp.com/
+https://shiny-l6s.herokuapp.com/
 ```
