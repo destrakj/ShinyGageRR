@@ -6,7 +6,7 @@ shinyUI(tagList(
   img(
     src = "logo.png",
     height = 75,
-    width = 250
+    width = 75
   ),
   br(),
   br(),
@@ -65,6 +65,10 @@ shinyUI(tagList(
           verbatimTextOutput("without4"),
           p("Gage Evaluation :"),
           verbatimTextOutput("without5"),
+          br(),
+          br(),
+          p(style="text-align: center", strong("Gage R&R (ANOVA) Report For Measurement")),
+          plotOutput("without6"),
         ),
         tabPanel(
           title = "Result With Interaction",
@@ -75,6 +79,10 @@ shinyUI(tagList(
           verbatimTextOutput("with4"),
           p("Gage Evaluation :"),
           verbatimTextOutput("with5"),
+          br(),
+          br(),
+          p(style="text-align: center", strong("Gage R&R (ANOVA) Report For Measurement")),
+          plotOutput("with6"),
         )
       ))
     ),
