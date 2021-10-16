@@ -1,4 +1,6 @@
 library(dplyr)
+library(ggplot2)
+library(gridExtra)
 library(shinyscreenshot)
 
 #server
@@ -53,8 +55,14 @@ shinyServer(function(input, output) {
     varCompIn[2, 1] <- twoWayInSum[4, 3]
     varCompIn[4, 1] <-
       (twoWayInSum[2, 3] - twoWayInSum[3, 3]) / (countPart * countResponse)
+    if(varCompIn[4, 1] < 0){
+      varCompIn[4, 1] = 0
+    }
     varCompIn[5, 1] <-
       (twoWayInSum[3, 3] - twoWayInSum[4, 3]) / countResponse
+    if(varCompIn[5, 1] < 0){
+      varCompIn[5, 1] = 0
+    }
     varCompIn[3, 1] <- (varCompIn[4, 1]) + (varCompIn[5, 1])
     varCompIn[1, 1] <- (varCompIn[2, 1]) + (varCompIn[3, 1])
     varCompIn[6, 1] <-
@@ -62,7 +70,7 @@ shinyServer(function(input, output) {
     varCompIn[7, 1] <- varCompIn[1, 1] + varCompIn[6, 1]
     
     varCompIn[, 2] <-
-      round(((varCompIn[, 1] / varCompIn[7, 1]) * 100), digits = 2)
+      round(((varCompIn[, 1] / varCompIn[7, 1]) * 100), digits = 8)
     
     print(varCompIn)
     assign("varCompIn", data.frame(matrix(
@@ -111,6 +119,112 @@ shinyServer(function(input, output) {
     }
   })
   
+  output$with6 <- renderPlot({
+    req(input$csvFile)
+    gagerr <- rawData()
+    covInPercent <-
+      matrix(c(varCompIn[1:3, 2], varCompIn[6, 2], gagEvalIn[1:3, 3], gagEvalIn[6, 3]))
+    covInXaxis <-
+      rep(c("Gage R&R", "Repeat", "Reprod", "Part-To-Part"), 2)
+    covInFill <- c(rep("%Contrib", 4), rep("%StudyVar", 4))
+    covInData <- data.frame(covInPercent, covInXaxis, covInFill)
+    
+    GrrcovIn <-
+      ggplot(covInData,
+             aes(fill = covInFill, y = covInPercent, x = covInXaxis)) +
+      geom_bar(position = "dodge", stat = "identity") + ggtitle("Components of Variation") +
+      labs(fill = "", x = "", y = "Percent") +
+      scale_fill_manual(values = c("black", "dodgerblue")) +
+      theme_update(plot.title = element_text(hjust = 0.5))
+    GrrcovIn
+    
+    rbo <-
+      ggplot(gagerr, aes(x = as.factor(Operator), y = Response)) +
+      geom_boxplot() + ggtitle("Response by Operator") + labs(fill = "", x = "Operator", y = "Measurements") +
+      stat_summary(
+        fun = mean,
+        geom = "point",
+        shape = 18,
+        size = 3,
+        color = "red"
+      ) +
+      stat_summary(fun = mean,
+                   geom = "line",
+                   aes(group = 1),
+                   color = "red")
+    #stat_summary(fun = mean, geom="text", vjust=-0.25, aes( label=(..y..)))
+    rbo
+    
+    XbarChartByOpMean <-
+      aggregate(Response ~ Part + Operator, data = gagerr, mean)
+    XbarChartByOp <-
+      XbarChartByOpMean[order(as.numeric(as.character(XbarChartByOpMean$Part))), ]
+    
+    XbarChartByOp <-
+      ggplot(XbarChartByOp,
+             aes(
+               x = as.numeric(as.character(Part)),
+               y = Response,
+               color =  ,
+               group = 1
+             )) +
+      geom_point() + geom_path() + ggtitle("Xbar Chart by Operator") + labs(fill = "", x = "Part", y = "Sample Mean") +
+      facet_wrap(~ Operator)
+    theme_update(plot.title = element_text(hjust = 0.5))
+    XbarChartByOp
+    
+    SubsetOp1 <- subset(gagerr, Operator == 1)
+    SubsetOp1Ot1 <-
+      subset(SubsetOp1, Other == 1, select = c(Part, Operator, Response))
+    SubsetOp1Ot2 <-
+      subset(SubsetOp1, Other == 2, select = c(Part, Operator, Response))
+    SubsetMergeOp1 <- merge(SubsetOp1Ot1, SubsetOp1Ot2, "Part")
+    SubsetMergeOp1 <-
+      SubsetMergeOp1[order(as.numeric(as.character(SubsetMergeOp1$Part))), ]
+    DfSubsetOp1 <-
+      data.frame(
+        SubsetMergeOp1$Part,
+        SubsetMergeOp1$Operator.x,
+        abs(SubsetMergeOp1$Response.x - SubsetMergeOp1$Response.y)
+      )
+    colnames(DfSubsetOp1) <- c("Part", "Operator", "Response")
+    
+    SubsetOp2 <- subset(gagerr, Operator == 2)
+    SubsetOp2Ot1 <-
+      subset(SubsetOp2, Other == 1, select = c(Part, Operator, Response))
+    SubsetOp2Ot2 <-
+      subset(SubsetOp2, Other == 2, select = c(Part, Operator, Response))
+    SubsetMergeOp2 <- merge(SubsetOp2Ot1, SubsetOp2Ot2, "Part")
+    SubsetMergeOp2 <-
+      SubsetMergeOp2[order(as.numeric(as.character(SubsetMergeOp2$Part))), ]
+    DfSubsetOp2 <-
+      data.frame(
+        SubsetMergeOp2$Part,
+        SubsetMergeOp2$Operator.x,
+        abs(SubsetMergeOp2$Response.x - SubsetMergeOp2$Response.y)
+      )
+    colnames(DfSubsetOp2) <- c("Part", "Operator", "Response")
+    
+    RChartSubsetByOp <- rbind(DfSubsetOp1, DfSubsetOp2)
+    
+    RChartByOp <-
+      ggplot(RChartSubsetByOp, aes(
+        x = as.numeric(as.character(Part)),
+        y = Response,
+        group = 1
+      )) +
+      geom_point() + geom_path() + ggtitle("R Chart by Operator") + labs(fill = "", x = "Part", y = "Sample Range") +
+      facet_wrap(~ Operator)
+    theme_update(plot.title = element_text(hjust = 0.5))
+    RChartByOp
+    
+    grid.arrange(
+      arrangeGrob(GrrcovIn, rbo, ncol = 2),
+      arrangeGrob(XbarChartByOp, RChartByOp, ncol = 2),
+      nrow = 2
+    )
+  })
+  
   output$without2 <- renderPrint({
     gagerr <- rawData()
     #ANOVA Two Way Without Interaction
@@ -149,6 +263,9 @@ shinyServer(function(input, output) {
     varComp[2, 1] <- twoWaySm[3, 3]
     varComp[4, 1] <-
       (twoWaySm[2, 3] - twoWaySm[3, 3]) / (countPart * countResponse)
+    if(varComp[4, 1] < 0){
+      varComp[4, 1] = 0
+    }
     varComp[5, 1] <-
       (twoWaySm[1, 3] - twoWaySm[3, 3]) / (countOperator * countResponse)
     varComp[3, 1] <- varComp[4, 1]
@@ -156,7 +273,7 @@ shinyServer(function(input, output) {
     varComp[6, 1] <- varComp[1, 1] + varComp[5, 1]
     
     varComp[, 2] <-
-      round(((varComp[, 1] / varComp[6, 1]) * 100), digits = 2)
+      round(((varComp[, 1] / varComp[6, 1]) * 100), digits = 8)
     
     print(varComp)
     assign("varComp", data.frame(matrix(
@@ -202,6 +319,109 @@ shinyServer(function(input, output) {
     } else if (gagEval[1, 3] <= 30) {
       print(" %R&R Study : Borderline")
     }
+  })
+  
+  output$without6 <- renderPlot({
+    req(input$csvFile)
+    gagerr <- rawData()
+    covPercent <-
+      matrix(c(varComp[1:3, 2], varComp[5, 2], gagEval[1:3, 3], gagEval[5, 3]))
+    covXaxis <-
+      rep(c("Gage R&R", "Repeat", "Reprod", "Part-To-Part"), 2)
+    covFill <- c(rep("%Contrib", 4), rep("%StudyVar", 4))
+    covData <- data.frame(covPercent, covXaxis, covFill)
+    
+    Grrcov <-
+      ggplot(covData, aes(fill = covFill, y = covPercent, x = covXaxis)) +
+      geom_bar(position = "dodge", stat = "identity") + ggtitle("Components of Variation") +
+      labs(fill = "", x = "", y = "Percent") +
+      scale_fill_manual(values = c("black", "dodgerblue")) +
+      theme_update(plot.title = element_text(hjust = 0.5))
+    Grrcov
+    
+    rbo <-
+      ggplot(gagerr, aes(x = as.factor(Operator), y = Response)) +
+      geom_boxplot() + ggtitle("Response by Operator") + labs(fill = "", x = "Operator", y = "Measurements") +
+      stat_summary(
+        fun = mean,
+        geom = "point",
+        shape = 18,
+        size = 3,
+        color = "red"
+      ) +
+      stat_summary(fun = mean,
+                   geom = "line",
+                   aes(group = 1),
+                   color = "red")
+    #stat_summary(fun = mean, geom="text", vjust=-0.25, aes( label=(..y..)))
+    rbo
+    
+    XbarChartByOpMean <-
+      aggregate(Response ~ Part + Operator, data = gagerr, mean)
+    XbarChartByOp <-
+      XbarChartByOpMean[order(as.numeric(as.character(XbarChartByOpMean$Part))), ]
+    
+    XbarChartByOp <-
+      ggplot(XbarChartByOp, aes(
+        x = as.numeric(as.character(Part)),
+        y = Response,
+        group = 1
+      )) +
+      geom_point() + geom_path() + ggtitle("Xbar Chart by Operator") + labs(fill = "", x = "Part", y = "Sample Mean") +
+      facet_wrap(~ Operator)
+    theme_update(plot.title = element_text(hjust = 0.5))
+    XbarChartByOp
+    
+    SubsetOp1 <- subset(gagerr, Operator == 1)
+    SubsetOp1Ot1 <-
+      subset(SubsetOp1, Other == 1, select = c(Part, Operator, Response))
+    SubsetOp1Ot2 <-
+      subset(SubsetOp1, Other == 2, select = c(Part, Operator, Response))
+    SubsetMergeOp1 <- merge(SubsetOp1Ot1, SubsetOp1Ot2, "Part")
+    SubsetMergeOp1 <-
+      SubsetMergeOp1[order(as.numeric(as.character(SubsetMergeOp1$Part))), ]
+    DfSubsetOp1 <-
+      data.frame(
+        SubsetMergeOp1$Part,
+        SubsetMergeOp1$Operator.x,
+        abs(SubsetMergeOp1$Response.x - SubsetMergeOp1$Response.y)
+      )
+    colnames(DfSubsetOp1) <- c("Part", "Operator", "Response")
+    
+    SubsetOp2 <- subset(gagerr, Operator == 2)
+    SubsetOp2Ot1 <-
+      subset(SubsetOp2, Other == 1, select = c(Part, Operator, Response))
+    SubsetOp2Ot2 <-
+      subset(SubsetOp2, Other == 2, select = c(Part, Operator, Response))
+    SubsetMergeOp2 <- merge(SubsetOp2Ot1, SubsetOp2Ot2, "Part")
+    SubsetMergeOp2 <-
+      SubsetMergeOp2[order(as.numeric(as.character(SubsetMergeOp2$Part))), ]
+    DfSubsetOp2 <-
+      data.frame(
+        SubsetMergeOp2$Part,
+        SubsetMergeOp2$Operator.x,
+        abs(SubsetMergeOp2$Response.x - SubsetMergeOp2$Response.y)
+      )
+    colnames(DfSubsetOp2) <- c("Part", "Operator", "Response")
+    
+    RChartSubsetByOp <- rbind(DfSubsetOp1, DfSubsetOp2)
+    
+    RChartByOp <-
+      ggplot(RChartSubsetByOp, aes(
+        x = as.numeric(as.character(Part)),
+        y = Response,
+        group = 1
+      )) +
+      geom_point() + geom_path() + ggtitle("R Chart by Operator") + labs(fill = "", x = "Part", y = "Sample Range") +
+      facet_wrap(~ Operator)
+    theme_update(plot.title = element_text(hjust = 0.5))
+    RChartByOp
+    
+    grid.arrange(
+      arrangeGrob(Grrcov, rbo, ncol = 2),
+      arrangeGrob(XbarChartByOp, RChartByOp, ncol = 2),
+      nrow = 2
+    )
   })
   
   observeEvent(input$downloadData, {
